@@ -15,21 +15,22 @@ class SCG {
     }
     /**
      * Genera il keystream
-     * @param {Base64String} K chiave
-     * @param {Base64String} N nonce
+     * @param {Base64String|Uint8Array} K chiave
+     * @param {Base64String|Uint8Array} N nonce
      * @param {Int} L lunghezza in byte dell'output
      */
     static async keystream(K, N = "", L) {
-        // K = BufferUtils.base64.bytes_(K);
-        // N = BufferUtils.base64.bytes_(N);
+        K = typeof K === 'string' ? BufferUtils.base64.bytes_(K) : K;
+        N = typeof N === 'string' ? BufferUtils.base64.bytes_(N) : N;
         const stream = new Uint8Array(L);
         // ---
         let generated_length = 0;
-        let counter = 0;
+        let counter = BufferUtils.number.little_endian(BufferUtils.merge.bytes(K, N));
         // ---
         while (generated_length < L) {
             counter++;
-            const hash = new Uint8Array(await this.hash_256(K + "." + counter + "." + N, false));
+            const C = BufferUtils.merge.bytes(K, N, BufferUtils.txt.bytes_(`${counter}`)); // -- counter
+            const hash = new Uint8Array(await this.sha256(C, false));
             const byte_to_copy = Math.min(hash.length, L - generated_length);
             // ---
             stream.set(hash.subarray(0, byte_to_copy), generated_length);
@@ -48,7 +49,7 @@ class SCG {
      */
     static async cifra(M, K, N = null) {
         // -- eseguo la firma del messaggio (S = sign)
-        const S = new Uint8Array(await this.hash_256(M + "." + K, false));
+        const S = new Uint8Array(await this.sha256(M + "." + K, false));
         // ---
         M = new TextEncoder().encode(M);
         const L = M.length;
@@ -92,30 +93,33 @@ class SCG {
         }
         M = new TextDecoder().decode(M);
         // -- verifico la firma
-        const S1 = await this.hash_256(M + "." + K, true);
+        const S1 = await this.sha256(M + "." + K, true);
         if (S1 !== S) M = false;
         // ---
         return M;
     }
     /**
      * Esegue l hash di una stringa con SHA256
-     * @param {String} text stringa da hashare
+     * @param {String} data stringa da hashare
      * @param {Bool} as_base64 false restituisce il buffer
      * @returns 
      */
-    static async hash_256(text, as_base64 = true) {
-        const data = new TextEncoder().encode(text);
+    static async sha256(data, as_base64 = true) {
+        if (typeof data === 'string') data = new TextEncoder().encode(data);
         const hash = await crypto.subtle.digest("SHA-256", data);
         return as_base64 ? BufferUtils.base64._bytes(hash) : hash;
     }
 }
 
-const M = "Ciao come stai?";
+const M = "Ciao, come stai?";
 const K = SCG.random_bytes(32, true);
 
 async function test() {
+    const start = performance.now();
     const EM = await SCG.cifra(M, K);
+    const end = performance.now();
     console.log(EM);
+    console.log((end - start) + "ms");
     // ---
     const inversa = await SCG.decifra(EM.EM, K, EM.N);
     console.log(inversa);
