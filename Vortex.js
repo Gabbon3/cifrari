@@ -1,5 +1,4 @@
 import Buffer from './Buffer.js';
-
 /**
  * Cifrario a flusso
  * ChaCha20 like
@@ -86,13 +85,10 @@ class Vortex extends Buffer {
     /**
      * Genera lo stream basandosi su chiave e nonche
      * inizializza un blocco da 16 parole (64 byte) e lo processa 20 volte per colonne e diagonali
-     * @param {Uint32Array} K 8 parole (32 byte)
-     * @param {Uint32Array} N 6 parole (24 byte)
-     * @param {Uint32Array} C 2 parole (8 byte)
+     * @param {Uint32Array} B 16 parole
      * @returns {ArrayBuffer}
      */
-    static stream(K, N, C) {
-        const B = super.merge([K, N, C], 32);
+    static stream(B) {
         // ---
         for (let i = 0; i < 20; i++) {
             this.round(B, 0, 4, 8, 12);
@@ -105,8 +101,6 @@ class Vortex extends Buffer {
             this.round(B, 2, 7, 8, 13);
             this.round(B, 3, 4, 9, 14);
         }
-        // ---
-        return new Uint8Array(B.buffer);
     }
     /**
      * Combina la chiave il nonce e il contatore per ottenere una sequenza
@@ -116,6 +110,8 @@ class Vortex extends Buffer {
      * @param {int} L numero di byte da ottenere in uscita
      */
     static keystream(K, N, L) {
+        // -- NW = Number of Words = numero di parole da ottenere
+        const NW = Math.ceil(L / 4);
         // numero di byte generati
         let GL = 0;
         // -- contatore
@@ -124,19 +120,25 @@ class Vortex extends Buffer {
         const KS = new Uint8Array(L);
         // -- usato per il counter
         let c = true;
-        while (GL < L) {
-            const B = this.stream(K, N, C);
+        const B = super.merge([K, N, C], 32);
+        // ---
+        while (GL < NW) {
+            B.set(K); // --+ chiave
+            B.set(N, 8); // --+ nonce
+            B.set(C, 14); // --+ contatore
             // ---
-            const byte_to_copy = Math.min(B.length, L - GL);
+            this.stream(B);
+            // -- btc = byte to copy
+            const btc = Math.min(B.length, NW - GL);
             // ---
-            KS.set(B.subarray(0, byte_to_copy), GL);
+            KS.set(B.subarray(0, btc), GL);
             // ---
-            GL += 64;
+            GL += 16;
             c ? C[0]++ : C[1]++;
             c = !c;
         }
         // ---
-        return KS;
+        return new Uint8Array(KS.buffer, 0, L);
     }
     /**
      * Cifra utilizzando Vortex
