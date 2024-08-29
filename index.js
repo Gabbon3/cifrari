@@ -1,4 +1,6 @@
 import Vortex from './Vortex.js';
+import Buffer from './Buffer.js';
+import Poly1305 from './Poly1305.js';
 import m from './m.js';
 
 window.onload = () => {

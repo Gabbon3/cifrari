@@ -6,10 +6,10 @@ class Buffer {
          * @returns {Uint8Array}
          */
         bytes_(base64) {
-            let binaryString = atob(base64);
-            let bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
+            let bin = atob(base64);
+            let bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) {
+                bytes[i] = bin.charCodeAt(i);
             }
             return bytes;
         },
@@ -19,12 +19,12 @@ class Buffer {
          * @returns {string}
          */
         _bytes(buffer) {
-            let binary = "";
+            let bin = "";
             const bytes = new Uint8Array(buffer.buffer);
             for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
+                bin += String.fromCharCode(bytes[i]);
             }
-            return window.btoa(binary);
+            return window.btoa(bin);
         },
     };
 
@@ -98,6 +98,40 @@ class Buffer {
         },
     };
 
+    static bigint = {
+        /**
+         * Converte un Uint8Array in un BigInt
+         * @param {Uint8Array} buffer 
+         * @returns {BigInt}
+         */
+        _bytes(byte) {
+            let n = 0n;
+            const L = byte.length;
+            // ---
+            for (let i = 0; i < L; i++) {
+                n = (n << 8n) | BigInt(byte[i]);
+            }
+            // ---
+            return n;
+        },
+        /**
+         * Converte un BigInt in un Uint8Array
+         * @param {BigInt} n 
+         * @returns {Uint8Array}
+         */
+        bytes_(n) {
+            const L = Math.ceil(n.toString(2).length / 8);
+            // ---
+            const B = new Uint8Array(L);
+            for (let i = 0; i < L; i++) {
+                B[i] = Number(n & 255n);
+                n >>= 8n;
+            }
+            // ---
+            return B.reverse();
+        }
+    };
+
     static merge(buffers, size) {
         // -- ottengo la lunghezza totale
         let length = 0;
@@ -128,6 +162,24 @@ class Buffer {
         }
         // --
         return merged_array;
+    }
+
+    /**
+     * Compara due Buffer verificando se sono uguali
+     * @param {Array} a 
+     * @param {Array} b 
+     * @returns 
+     */
+    static compare(a, b) {
+        if (a.length != b.length) throw new Error("Invalid size a is different than b");
+        // ---
+        const L = a.length;
+        // ---
+        for (let i = 0; i < L; i++) {
+            if (a[i] !== b[i]) return false;
+        }
+        // ---
+        return true;
     }
 }
 
