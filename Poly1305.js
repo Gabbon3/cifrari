@@ -1,4 +1,4 @@
-import Buffer from './Buffer.js';
+import Buffer from './Vortex/Buffer.js';
 
 class Poly1305 extends Buffer {
     constructor() { super(); }
@@ -11,7 +11,7 @@ class Poly1305 extends Buffer {
      * @param {Uint8Array} K chiave
      */
     static auth(M, K) {
-        M = new Uint16Array(Buffer.txt.bytes_(M).buffer);
+        M = Buffer.txt.Uint16_(M);
         const L = M.length;
         // ---
         const r = K.subarray(0, 16);
